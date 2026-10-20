@@ -1,0 +1,13 @@
+This repository contains code only. The data are downloaded by the notebook at run time.
+
+CODE
+    Motor_Insurance_Pricing.ipynb, README.md and everything else authored here.
+    MIT License, (c) 2026 Tommaso Cortopassi. See LICENSE.
+
+DATA (not redistributed here)
+    freMTPL2freq, freMTPL2sev: French motor third-party liability portfolio,
+    from the CASdatasets R package by C. Dutang and A. Charpentier,
+    https://github.com/dutangc/CASdatasets
+    Distributed under the GNU General Public License (version 2 or later).
+    The notebook downloads the original 2017 release from the commit
+    9aa07b9d7f07c6d877674decc95503bf1f0fd8c5 of that repository.
