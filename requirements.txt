@@ -7,3 +7,4 @@ statsmodels
 lightgbm
 rdata
 jupyter
+seaborn
