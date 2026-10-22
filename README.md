@@ -66,9 +66,7 @@ This motivates the assumption that expected claim counts $N$ scale linearly
 with exposure.
 With a log link,
 
-$$
-\log \mathbb{E}[N \mid x] = \log e + \log \lambda(x), \text{ where }\lambda(x) \text{ is estimated with a linear model, i.e.} \log \lambda(x) = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k.
-$$
+$$ \log \mathbb{E}[N \mid x] = \log e + \log \lambda(x), \text{ where }\lambda(x) \text{ is estimated with a linear model, i.e.} \log \lambda(x) = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k.$$
 
 The term $\log e$ has no coefficient: it is an **offset**, a known part of the linear predictor.
 
@@ -114,7 +112,7 @@ multiplicative correction to the average. Two practical points:
 ## Severity: Gamma with a log link, and large claims
 
 Claim costs are positive and skewed, and their spread grows with their mean. The Gamma distribution
-has exactly this property, $\operatorname{Var}(Y) = \phi\, \mu^2$ (a constant coefficient of
+has exactly this property, $\text{Var}(Y) = \phi \mu^2$ (a constant coefficient of
 variation), and with a log link the severity tariff is multiplicative too.
 
 **Large claims.** This is one of the crucial aspects of the problem. The largest 1% of claims carry 38% of the total cost, and the largest is 4 million. A
