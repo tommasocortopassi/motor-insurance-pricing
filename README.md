@@ -21,7 +21,7 @@ the theory behind each step and summarises the results.
 - **The raw claim counts are wrong for a block of 9,139 policies.** Rebuilding the claim counts from the claims table
   reproduces exactly the counts published by Wüthrich & Merz (2023): 678,007 policies, 26,383 claims.
 - **Frequency: gradient boosting beats the GLM**, and where the two disagree the boosting is right
-  (right panel below). A visible part of the gap is `BonusMalus`, whose effect is not log-linear.
+  (right panel below).
 - **Severity: there is almost nothing to learn.** In cross-validation neither a GLM nor a GBM removes
   more than a fraction of a percent of the deviance of the plain mean: the cost of a claim depends on
   the accident, which the data do not describe.
@@ -35,52 +35,59 @@ number of claims and $Y_1, \dots, Y_N$ their costs. The total cost is $S = \sum_
 pure premium is the expected cost per year:
 
 $$
-\pi(x) = \frac{\mathbb{E}[S \mid x]}{e} = \underbrace{\frac{\mathbb{E}[N \mid x]}{e}}_{\text{frequency } \lambda(x)} \times \underbrace{\mathbb{E}[Y \mid x]}_{\text{severity } \mu(x)} .
+\pi(x) = \frac{\mathbb{E}[S \mid x]}{e} = \frac{\mathbb{E}[\mathbb{E}[S \mid N,x] \mid x]}{e}=\frac{\mathbb{E}[NY \mid x]}{e}=\underbrace{\frac{\mathbb{E}[N \mid x]}{e}}_{\text{frequency } \lambda(x)} \times \underbrace{\mathbb{E}[Y \mid x]}_{\text{severity } \mu(x)} .
 $$
 
 The factorisation holds if, given $x$, the claim costs are identically distributed and independent of
-the number of claims (Wald's identity). It lets us fit two simpler models, on two different datasets:
+the number of claims. It lets us fit two simpler models, on two different datasets:
 the frequency on all policies, the severity on the claims only.
 
 ## Frequency: Poisson with an exposure offset
 
 The number of claims is modelled as $N \sim \text{Poisson}(\lambda(x)\, e)$: a policy observed for half a
-year is expected to have half the claims of the same policy observed for a year. With a log link,
+year is expected to have half the claims of the same policy observed for a year. The Poisson random variable comes as a limit of a Binomial.
+Let $p$ be the probability of an accident occurring. In a given time $e$ the occasions in which accidents can occur scale linearly with $e$, let us say
+they are $M = \eta e$. Then the probability that the total number of claims in a period $e$ are exactly $N$ is:
+
+$$ \binom{M}{N} p^N (1-p)^{M-N} \approx e^{- \lambda} \frac{\lambda^N}{N!}, \text{ with } \lambda = Mp.$$
+
+With a log link,
 
 $$
-\log \mathbb{E}[N \mid x] = \log e + \log \lambda(x), \qquad \log \lambda(x) = \beta_0 + \beta_1 x_1 + \dots
+\log \mathbb{E}[N \mid x] = \log e + \log \lambda(x), \text{ where }\lambda(x) \text{ is estimated with a linear model, i.e.} \log \lambda(x) = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k.
 $$
 
 The term $\log e$ has no coefficient: it is an **offset**, a known part of the linear predictor.
 
-**Why not model the observed rate $N/e$ directly, with equal weights?** Because a policy observed for
-2 days with one claim has a rate of 180 claims per year. In the Poisson likelihood it counts for what it
-is, one claim in two days: with a single $\lambda$ the estimate is $\hat\lambda = \sum N_i / \sum e_i$,
-and the information a policy carries is proportional to its exposure.
+**Estimating the coefficients $\beta_i$** Coefficients are estimated by maximizing the log-likelihood of the Poisson distribution assuming $\{x^i\}$ observations, which we recall to be
+
+$$ \ell(\lambda, \beta_1, \dots, \beta_k|x^i) = \sum_{i} N_i \log(\mu_i) - \mu_i- \log(N_i !), \text{ with } \mu_i = e_i \lambda_i = e_i \exp(\beta_0 + \beta_1 x_1 ^i + \dots + \beta_k x_k ^i)$$
 
 **The log link makes the tariff multiplicative.** Each coefficient becomes a **relativity**
 $e^{\beta_j}$, the factor by which a characteristic multiplies the frequency with respect to a
-reference level. This is how actuarial tariffs are written.
+reference level. 
 
 **The Poisson GLM is balanced.** With the log link (the canonical link of the Poisson family) the
-maximum-likelihood equations are $X^\top (N - \hat\mu) = 0$; the row of the intercept says that the
-total predicted claims equal the observed total on the training data, exactly. The notebook checks it.
+maximum-likelihood equations (i.e. $\nabla_ \beta \ell =0$) are $X^\top (N - \hat\mu) = 0$; the row of the intercept says that the
+total predicted claims equal the observed total on the training data, exactly. The notebook checks it. We also point out that if $X$ (i.e. the matrix whose columns are the values of the features $x_i$) has 
+full rank, the hessian of the log-likelihood is negative definite, i.e. $\ell$ is strictly concave and it hs a unique stationary point which is a maximum.
+The reason we discard one of the categorical variables after the one-hot encoding is precisely to maintain this property, i.e. to have  unique MLE $\hat{\beta}$. 
 
 **The deviance measures the fit.** For counts, the squared error is a poor measure: the variance grows
 with the mean, and 96% of the policies have no claim. The Poisson deviance
 
 $$
-D = \frac{1}{\sum_i e_i} \sum_i 2 \left[ N_i \log \frac{N_i}{\hat\mu_i} - (N_i - \hat\mu_i) \right], \qquad \hat\mu_i = \hat\lambda(x_i)\, e_i ,
+D = \frac{1}{\sum_i e_i} \sum_i 2 \left[ N_i \log \frac{N_i}{\hat\mu_i} - (N_i - \hat\mu_i) \right], \qquad \hat\mu_i = \hat\lambda(x_i)\, e_i  \quad \text{ where } \quad \hat{\lambda}(x) =  \exp(\hat{\beta_0} + \hat{\beta_1} x_1 ^i + \dots + \hat{\beta_k} x_k ^i)
 $$
 
 is the loss the Poisson model minimises (lower is better). It cannot be zero: most of the variability
 of claim counts is pure chance, which no model can predict. That is why the improvements look small
-(a few percent): they are compared with that randomness.
+(a few percent): they are compared with that randomness. 
 
 ## Gradient boosting
 
 A gradient boosting machine (here LightGBM) adds hundreds of small decision trees, each one fitted to
-correct the errors of the previous ones, minimising the same Poisson loss. Unlike a GLM it finds by
+correct the errors of the previous ones, maximising the same likelihood. Unlike a GLM it finds by
 itself non-linear effects and interactions, and it uses the raw covariates.
 
 The exposure is passed as the starting point of each policy (`init_score`), set to
@@ -97,7 +104,7 @@ Claim costs are positive and skewed, and their spread grows with their mean. The
 has exactly this property, $\operatorname{Var}(Y) = \phi\, \mu^2$ (a constant coefficient of
 variation), and with a log link the severity tariff is multiplicative too.
 
-**Large claims.** The largest 1% of claims carry 38% of the total cost, and the largest is 4 million. A
+**Large claims.** This is one of the crucial aspects of the problem. The largest 1% of claims carry 38% of the total cost, and the largest is 4 million. A
 model fitted on raw amounts would mostly describe a handful of claims. Claims are therefore capped at
 $u = 50{,}000$, the severity model is fitted on the capped amounts, and the cost above the cap is added
 back to every claim as a **loading**:
@@ -108,12 +115,17 @@ L = \frac{\sum_k (Y_k - u)_+}{\sum_k \min(Y_k, u)} \quad \text{(on the training 
 $$
 
 The loading assumes that large claims are proportional to the "normal" severity of each profile: with
-72 claims above the cap, how they depend on 8 covariates cannot be estimated.
+72 claims above the cap, how they depend on 8 covariates cannot be estimated by any model.
 
 **Cross-validation.** With about 21,000 noisy claims, one validation split is not enough to tell
 whether a flexible model helps. The notebook compares the mean, the GLM and a GBM with 5-fold
 cross-validation, measured by $D^2 = 1 - D_{\text{model}} / D_{\text{mean}}$, the share of the Gamma
-deviance of the mean that a model removes.
+deviance of the mean that a model removes. The deviance $D$ can be expressed in terms of the log likelihood as
+
+$$ D = 2 ( \max_{\mu} \ell(\mu) - \ell (\hat{\beta})),$$
+
+i.e. twice th difference between the maximum possible value of $\ell$ (with $\mu_i = N_i$) and the value it attains 
+considering the maximum likelihood estimator of the coefficients $\hat{\beta}$. 
 
 ## Pure premium, balance and how the models are compared
 
@@ -132,8 +144,7 @@ On the test set the premiums are compared with these tools:
   value (lift) or by the ratio of two models' predictions (double lift), and compare observed and
   predicted values in each group. In a double lift chart, where the two models disagree, the one whose
   line follows the observed one is right.
-- The Tweedie deviance with power $p = 1.9$ (the distribution of a Poisson sum of Gamma claims, as in
-  the scikit-learn example) is also reported for the pure premium.
+
 
 ## Why the train/test split is grouped
 
@@ -238,6 +249,4 @@ This project was developed with the help of an AI assistant (Claude).
 
 - M. V. Wüthrich, M. Merz (2023). *Statistical Foundations of Actuarial Learning and its Applications*.
   Springer (open access). Section 13.1: the freMTPL2 data and their cleaning.
-- scikit-learn example: *Tweedie regression on insurance claims* (same data).
-- M. Goldburd, A. Khare, D. Tevet, D. Guller. *Generalized Linear Models for Insurance Rating*.
-  CAS Monograph No. 5.
+
