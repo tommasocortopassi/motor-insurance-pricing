@@ -189,18 +189,18 @@ All on the test set, which the models never saw.
 
 | model | Poisson deviance | Gini | balance |
 |---|---:|---:|---:|
-| same frequency for everybody | 0.4767 | 0 | 1.003 |
-| Poisson GLM | 0.4545 | 0.295 | 1.001 |
-| LightGBM | **0.4457** | **0.331** | 1.001 |
+| same frequency for everybody | 0.4755 | 0 | 1.0001 |
+| Poisson GLM | 0.4530 | 0.2984 | 0.9974 |
+| LightGBM | 0.4441 | 0.3341 | 0.9982 |
 
 **Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.2%, of a small GBM 0.05%; on the test claims the GLM reaches -0.20%. 
 
 **Pure premium** (cost per year):
-| model | Poisson deviance | Gini | balance |
-|---|---:|---:|---:|
-| same frequency for everybody | 0.4755 | 0 | 1.0001 |
-| Poisson GLM | 0.4530 | 0.2984 | 0.9974 |
-| LightGBM | 0.4441 | 0.3341 | 0.9982 |
+| model | Gini | balance |
+|---|---:|---:|
+| same premium for everybody | 0 | 1.0439 |
+| GLM frequency × GLM severity | 0.3062 | 1.0409 |
+| GBM frequency × GLM severity | 0.3084 | 1.0422 |
 
 ![Pure premium on the test set: Lorenz curves and double lift](figures/pure_premium_test.png)
 
@@ -221,9 +221,7 @@ away from the average cost per claim. Indeed very large claims are predictable b
 no model: they are covered on average by the loading, and they make one year's total cost uncertain.
 
 **Every premium over-predicts the test cost by 4%**, the flat one included. The test set has a smaller share of cost above the cap than the training set
-(about 18% against 24%). This is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models. the test set happens to
-contain fewer very large claims than the training set (15% of its cost above the cap against 24%). This
-is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models.
+(about 18% against 24%). This is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models. 
 
 ## Limitations
 
