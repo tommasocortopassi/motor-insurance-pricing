@@ -15,8 +15,8 @@ the theory behind each step and summarises the results.
 | Test set (135,768 policies) | Frequency: Poisson deviance ↓ | Frequency: Gini ↑ | Pure premium: Gini ↑ |
 |---|---:|---:|---:|
 | same premium for everybody | 0.4767 | 0 | 0 |
-| GLM | 0.4543 | 0.298 | 0.300 (GLM × GLM) |
-| gradient boosting | **0.4457** | **0.331** | **0.315** (GBM × GLM) |
+| GLM | 0.4545 | 0.295 | 0.292 (GLM × GLM) |
+| gradient boosting | **0.4457** | **0.331** | **0.309** (GBM × GLM) |
 
 - **The raw claim counts are wrong for a block of 9,139 policies.** Rebuilding the claim counts from the claims table
   reproduces exactly the counts published by Wüthrich & Merz (2023): 678,007 policies, 26,383 claims.
@@ -35,7 +35,7 @@ number of claims and $Y_1, \dots, Y_N$ their costs. The total cost is $S = \sum_
 pure premium is the expected cost per year:
 
 $$
-\pi(x) = \frac{\mathbb{E}[S \mid x]}{e} = \frac{\mathbb{E}[\mathbb{E}[S \mid N,x] \mid x]}{e}=\frac{\mathbb{E}[NY \mid x]}{e}=\underbrace{\frac{\mathbb{E}[N \mid x]}{e}}_{\text{frequency } \lambda(x)} \times \underbrace{\mathbb{E}[Y \mid x]}_{\text{severity } \mu(x)} .
+\pi(x) = \frac{\mathbb{E}[S \mid x]}{e} = \frac{\mathbb{E}[\mathbb{E}[S \mid N,x] \mid x]}{e}=\frac{\mathbb{E}[N\mathbb{E}[Y \mid x] \mid x]}{e}=\underbrace{\frac{\mathbb{E}[N \mid x]}{e}}_{\text{frequency } \lambda(x)} \times \underbrace{\mathbb{E}[Y \mid x]}_{\text{severity } \mu(x)} .
 $$
 
 The factorisation holds if, given $x$, the claim costs are identically distributed and independent of
@@ -45,12 +45,34 @@ the frequency on all policies, the severity on the claims only.
 ## Frequency: Poisson with an exposure offset
 
 The number of claims is modelled as $N \sim \text{Poisson}(\lambda(x)\, e)$: a policy observed for half a
-year is expected to have half the claims of the same policy observed for a year. The Poisson random variable comes as a limit of a Binomial.
-Let $p$ be the probability of an accident occurring. In a given time $e$ the occasions in which accidents can occur scale linearly with $e$, let us say
-they are $M = \eta e$. Then the probability that the total number of claims in a period $e$ are exactly $N$ is:
+year is expected to have half the claims of the same policy observed for a year. The Poisson model can be motivated as a limit of Binomial models. Fix a policy
+profile $x$ and an exposure period of $e$ years. Divide this period into
+$M$ short intervals, and suppose that each interval independently produces
+one claim with probability $p_M$, and no claim otherwise. The total number
+of claims then satisfies
 
-$$ \binom{M}{N} p^N (1-p)^{M-N} \approx e^{- \lambda} \frac{\lambda^N}{N!}, \text{ with } \lambda = Mp.$$
+$$
+N_M \sim \operatorname{Binomial}(M,p_M).
+$$
 
+Let $\lambda(x)$ denote the annual claim frequency. If, as $M\to\infty$,
+the probabilities satisfy $Mp_M\to e\lambda(x)$, then, for every
+non-negative integer $n$,
+
+$$
+\Pr(N_M=n)
+=
+\binom{M}{n}p_M^n(1-p_M)^{M-n}
+\longrightarrow
+\exp\!\bigl(-e\lambda(x)\bigr)
+\frac{\bigl(e\lambda(x)\bigr)^n}{n!}.
+$$
+
+Thus the limiting claim count is Poisson with mean $e\lambda(x)$.
+Here $\lambda(x)$ is a rate, measured in claims per year, whereas
+$e\lambda(x)$ is the expected number of claims over the exposure period.
+This motivates the assumption that expected claim counts $N$ scale linearly
+with exposure.
 With a log link,
 
 $$
@@ -61,7 +83,7 @@ The term $\log e$ has no coefficient: it is an **offset**, a known part of the l
 
 **Estimating the coefficients $\beta_i$** Coefficients are estimated by maximizing the log-likelihood of the Poisson distribution assuming $\{x^i\}$ observations, which we recall to be
 
-$$ \ell(\lambda, \beta_1, \dots, \beta_k|x^i) = \sum_{i} N_i \log(\mu_i) - \mu_i- \log(N_i !), \text{ with } \mu_i = e_i \lambda_i = e_i \exp(\beta_0 + \beta_1 x_1 ^i + \dots + \beta_k x_k ^i)$$
+$$ \ell( \beta_1, \dots, \beta_k|x^i) = \sum_{i} N_i \log(\mu_i) - \mu_i- \log(N_i !), \text{ with } \mu_i = e_i \lambda_i = e_i \exp(\beta_0 + \beta_1 x_1 ^i + \dots + \beta_k x_k ^i)$$
 
 **The log link makes the tariff multiplicative.** Each coefficient becomes a **relativity**
 $e^{\beta_j}$, the factor by which a characteristic multiplies the frequency with respect to a
@@ -70,18 +92,18 @@ reference level.
 **The Poisson GLM is balanced.** With the log link (the canonical link of the Poisson family) the
 maximum-likelihood equations (i.e. $\nabla_ \beta \ell =0$) are $X^\top (N - \hat\mu) = 0$; the row of the intercept says that the
 total predicted claims equal the observed total on the training data, exactly. The notebook checks it. We also point out that if $X$ (i.e. the matrix whose columns are the values of the features $x_i$) has 
-full rank, the hessian of the log-likelihood is negative definite, i.e. $\ell$ is strictly concave and it hs a unique stationary point which is a maximum.
-The reason we discard one of the categorical variables after the one-hot encoding is precisely to maintain this property, i.e. to have  unique MLE $\hat{\beta}$. 
+full rank, the hessian of the log-likelihood is negative definite, i.e. $\ell$ is strictly concave, so any finite maximizer is unique.  
+The reason we discard one of the levels for each categorical variable after the one-hot encoding is precisely to maintain this property, i.e. to have a unique MLE $\hat{\beta}$. 
 
 **The deviance measures the fit.** For counts, the squared error is a poor measure: the variance grows
 with the mean, and 96% of the policies have no claim. The Poisson deviance
 
 $$
-D = \frac{1}{\sum_i e_i} \sum_i 2 \left[ N_i \log \frac{N_i}{\hat\mu_i} - (N_i - \hat\mu_i) \right], \qquad \hat\mu_i = \hat\lambda(x_i)\, e_i  \quad \text{ where } \quad \hat{\lambda}(x) =  \exp(\hat{\beta_0} + \hat{\beta_1} x_1 ^i + \dots + \hat{\beta_k} x_k ^i)
+D = \frac{2}{\sum_i e_i} \sum_i  \left[ N_i \log \frac{N_i}{\hat\mu_i} - (N_i - \hat\mu_i) \right], \qquad \hat\mu_i = \hat\lambda(x_i)\, e_i  \quad \text{ where } \quad \hat{\lambda}(x) =  \exp(\hat{\beta_0} + \hat{\beta_1} x_1 ^i + \dots + \hat{\beta_k} x_k ^i)
 $$
 
-is the loss the Poisson model minimises (lower is better). It cannot be zero: most of the variability
-of claim counts is pure chance, which no model can predict. That is why the improvements look small
+is the loss the Poisson model minimises (lower is better). Even a correctly specified conditional-mean model generally 
+has positive out-of-sample deviance, because individual claim counts remain random. That is why the improvements look small
 (a few percent): they are compared with that randomness. 
 
 ## Gradient boosting
@@ -122,9 +144,9 @@ whether a flexible model helps. The notebook compares the mean, the GLM and a GB
 cross-validation, measured by $D^2 = 1 - D_{\text{model}} / D_{\text{mean}}$, the share of the Gamma
 deviance of the mean that a model removes. The deviance $D$ can be expressed in terms of the log likelihood as
 
-$$ D = 2 ( \max_{\mu} \ell(\mu) - \ell (\hat{\beta})),$$
+$$ D = 2 \phi ( \max_{\mu} \ell(\mu) - \ell (\hat{\beta})),$$
 
-i.e. twice th difference between the maximum possible value of $\ell$ (with $\mu_i = N_i$) and the value it attains 
+i.e. $2 \phi$ times the difference between the maximum possible value of $\ell$ (with $\mu_i = N_i$) and the value it attains 
 considering the maximum likelihood estimator of the coefficients $\hat{\beta}$. 
 
 ## Pure premium, balance and how the models are compared
@@ -179,20 +201,19 @@ All on the test set, which the models never saw.
 | model | Poisson deviance | Gini | balance |
 |---|---:|---:|---:|
 | same frequency for everybody | 0.4767 | 0 | 1.003 |
-| Poisson GLM | 0.4543 | 0.298 | 1.001 |
+| Poisson GLM | 0.4545 | 0.295 | 1.001 |
 | LightGBM | **0.4457** | **0.331** | 1.001 |
 
-**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.15% (the
-folds range from −0.2% to +0.5%), of a small GBM −0.11%; on the test claims the GLM reaches 0.66%. The
-scikit-learn tutorial finds 0.4% on the same data.
+**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.08% (the
+folds range from −0.7% to +0.4%), of a small GBM −0.11%; on the test claims the GLM reaches 0.47%. 
 
 **Pure premium** (cost per year):
 
 | model | Tweedie deviance (p = 1.9) | Gini | balance |
 |---|---:|---:|---:|
 | same premium for everybody | 34.53 | 0 | 1.13 |
-| GLM frequency × GLM severity | 34.03 | 0.300 | 1.13 |
-| GBM frequency × GLM severity | **33.97** | **0.315** | 1.13 |
+| GLM frequency × GLM severity | 34.07 | 0.292 | 1.13 |
+| GBM frequency × GLM severity | **34.00** | **0.309** | 1.13 |
 
 ![Pure premium on the test set: Lorenz curves and double lift](figures/pure_premium_test.png)
 
@@ -203,13 +224,13 @@ exposure from the lowest to the highest prediction (notebook §9).
 
 | test set | riskiest 10% / safest 10% (observed) | largest error in a group | total predicted / observed |
 |---|---:|---:|---:|
-| frequency, GLM | 5.9× | 11% | 1.001 |
+| frequency, GLM | 5.6× | 11% | 1.001 |
 | frequency, GBM | 7.2× | 7% | 1.001 |
-| pure premium, GLM × GLM, cost below 50,000 per claim | 6.5× | 14% | 1.001 |
-| pure premium, GBM × GLM, cost below 50,000 per claim | 8.7× | 14% | 1.002 |
+| pure premium, GLM × GLM, cost below 50,000 per claim | 7.2× | 32% | 1.002 |
+| pure premium, GBM × GLM, cost below 50,000 per claim | 8.2× | 41% | 1.002 |
 
 The frequency models separate the risks and get their level right. The severity model barely moves
-away from the average cost per claim, which is all the data allow. Very large claims are predictable by
+away from the average cost per claim. Indeed very large claims are predictable by
 no model: they are covered on average by the loading, and they make one year's total cost uncertain.
 
 **Every premium over-predicts the test cost by 13%**, the flat one included: the test set happens to
@@ -219,7 +240,7 @@ is the large-claim loading meeting one year of heavy-tailed data, not a defect o
 ## Limitations
 
 - **One test year.** With large claims this volatile, the difference between the two premiums (Gini
-  0.315 against 0.300) is within what another sample could reverse; a bootstrap of the test set or more
+  0.309 against 0.292) is within what another sample could reverse; a bootstrap of the test set or more
   years of data would be needed before choosing one for a real tariff.
 - **No time dimension.** The data have no dates, so the models are tested on a random sample of the same
   year, not on the following one.
