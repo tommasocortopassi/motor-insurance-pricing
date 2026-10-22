@@ -12,11 +12,11 @@ the theory behind each step and summarises the results.
 
 ## Headline
 
-| Test set (135,768 policies) | Frequency: Poisson deviance ↓ | Frequency: Gini ↑ | Pure premium: Gini ↑ |
-|---|---:|---:|---:|
-| same premium for everybody | 0.4767 | 0 | 0 |
-| GLM | 0.4545 | 0.295 | 0.292 (GLM × GLM) |
-| gradient boosting | **0.4457** | **0.331** | **0.309** (GBM × GLM) |
+| Test set (135,777 policies) | Frequency: Poisson deviance ↓ | Frequency: Gini ↑ |   Pure premium: Gini ↑ |
+|------------------------------|------------------------------:|------------------:|-----------------------:|
+| same premium for everybody   |                        0.4755 |                 0 |                      0 |
+| GLM                          |                        0.4530 |            0.2984 |     0.3062 (GLM × GLM) |
+| gradient boosting            |                    **0.4441** |        **0.3341** | **0.3084** (GBM × GLM) |
 
 - **The raw claim counts are wrong for a block of 9,139 policies.** Rebuilding the claim counts from the claims table
   reproduces exactly the counts published by Wüthrich & Merz (2023): 678,007 policies, 26,383 claims.
@@ -51,22 +51,13 @@ $M$ short intervals, and suppose that each interval independently produces
 one claim with probability $p_M$, and no claim otherwise. The total number
 of claims then satisfies
 
-$$
-N_M \sim \operatorname{Binomial}(M,p_M).
-$$
+$$ N_M \sim \text{Bi}(M,p_M). $$
 
 Let $\lambda(x)$ denote the annual claim frequency. If, as $M\to\infty$,
 the probabilities satisfy $Mp_M\to e\lambda(x)$, then, for every
 non-negative integer $n$,
 
-$$
-\Pr(N_M=n)
-=
-\binom{M}{n}p_M^n(1-p_M)^{M-n}
-\longrightarrow
-\exp\!\bigl(-e\lambda(x)\bigr)
-\frac{\bigl(e\lambda(x)\bigr)^n}{n!}.
-$$
+$$ \Pr(N_M=n) = \binom{M}{n}p_M^n(1-p_M)^{M-n} \longrightarrow \exp\!\bigl(-e\lambda(x)\bigr) \frac{\bigl(e\lambda(x)\bigr)^n}{n!}.$$
 
 Thus the limiting claim count is Poisson with mean $e\lambda(x)$.
 Here $\lambda(x)$ is a rate, measured in claims per year, whereas
@@ -137,7 +128,7 @@ L = \frac{\sum_k (Y_k - u)_+}{\sum_k \min(Y_k, u)} \quad \text{(on the training 
 $$
 
 The loading assumes that large claims are proportional to the "normal" severity of each profile: with
-72 claims above the cap, how they depend on 8 covariates cannot be estimated by any model.
+68 training claims above the cap, how they depend on 8 covariates cannot be estimated by any model.
 
 **Cross-validation.** With about 21,000 noisy claims, one validation split is not enough to tell
 whether a flexible model helps. The notebook compares the mean, the GLM and a GBM with 5-fold
@@ -204,16 +195,14 @@ All on the test set, which the models never saw.
 | Poisson GLM | 0.4545 | 0.295 | 1.001 |
 | LightGBM | **0.4457** | **0.331** | 1.001 |
 
-**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.08% (the
-folds range from −0.7% to +0.4%), of a small GBM −0.11%; on the test claims the GLM reaches 0.47%. 
+**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.2%, of a small GBM 0.05%; on the test claims the GLM reaches -0.20%. 
 
 **Pure premium** (cost per year):
-
-| model | Tweedie deviance (p = 1.9) | Gini | balance |
+| model | Poisson deviance | Gini | balance |
 |---|---:|---:|---:|
-| same premium for everybody | 34.53 | 0 | 1.13 |
-| GLM frequency × GLM severity | 34.07 | 0.292 | 1.13 |
-| GBM frequency × GLM severity | **34.00** | **0.309** | 1.13 |
+| same frequency for everybody | 0.4755 | 0 | 1.0001 |
+| Poisson GLM | 0.4530 | 0.2984 | 0.9974 |
+| LightGBM | 0.4441 | 0.3341 | 0.9982 |
 
 ![Pure premium on the test set: Lorenz curves and double lift](figures/pure_premium_test.png)
 
@@ -223,28 +212,29 @@ Not "which one is better", but whether they work at all: on the test set, cut in
 exposure from the lowest to the highest prediction (notebook §9).
 
 | test set | riskiest 10% / safest 10% (observed) | largest error in a group | total predicted / observed |
-|---|---:|---:|---:|
-| frequency, GLM | 5.6× | 11% | 1.001 |
-| frequency, GBM | 7.2× | 7% | 1.001 |
-| pure premium, GLM × GLM, cost below 50,000 per claim | 7.2× | 32% | 1.002 |
-| pure premium, GBM × GLM, cost below 50,000 per claim | 8.2× | 41% | 1.002 |
+|---|-------------------------------------:|-------------------------:|---------------------------:|
+| frequency, GLM |                                 5.6× |                      13% |                      0.997 |
+| frequency, GBM |                                 7.7× |                       9% |                      0.998 |
+| pure premium, GLM × GLM, cost below 50,000 per claim |                                 6.8× |                      29% |                      0.966 |
+| pure premium, GBM × GLM, cost below 50,000 per claim |                                 9.4× |                      36% |                      0.967 |
 
 The frequency models separate the risks and get their level right. The severity model barely moves
 away from the average cost per claim. Indeed very large claims are predictable by
 no model: they are covered on average by the loading, and they make one year's total cost uncertain.
 
-**Every premium over-predicts the test cost by 13%**, the flat one included: the test set happens to
+**Every premium over-predicts the test cost by 4%**, the flat one included. The test set has a smaller share of cost above the cap than the training set
+(about 18% against 24%). This is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models. the test set happens to
 contain fewer very large claims than the training set (15% of its cost above the cap against 24%). This
 is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models.
 
 ## Limitations
 
 - **One test year.** With large claims this volatile, the difference between the two premiums (Gini
-  0.309 against 0.292) is within what another sample could reverse; a bootstrap of the test set or more
+  0.308 against 0.306) is within what another sample could reverse; a bootstrap of the test set or more
   years of data would be needed before choosing one for a real tariff.
 - **No time dimension.** The data have no dates, so the models are tested on a random sample of the same
   year, not on the following one.
-- **The loading is estimated on 72 claims**, and the frequency × severity split assumes that the cost
+- **The loading is estimated on 68 claims**, and the frequency × severity split assumes that the cost
   of a claim does not depend on how many claims the policy had.
 
 ## Running it
