@@ -72,7 +72,7 @@ The term $\log e$ has no coefficient: it is an **offset**, a known part of the l
 
 **Estimating the coefficients $\beta_i$** Coefficients are estimated by maximizing the log-likelihood of the Poisson distribution assuming $\{x^i\}$ observations, which we recall to be
 
-$$ \ell( \beta_1, \dots, \beta_k|x^i) = \sum_{i} N_i \log(\mu_i) - \mu_i- \log(N_i !), \text{ with } \mu_i = e_i \lambda_i = e_i \exp(\beta_0 + \beta_1 x_1 ^i + \dots + \beta_k x_k ^i)$$
+$$ \ell( \beta_0, \beta_1, \dots, \beta_k|x^i) = \sum_{i} N_i \log(\mu_i) - \mu_i- \log(N_i !), \text{ with } \mu_i = e_i \lambda_i = e_i \exp(\beta_0 + \beta_1 x_1 ^i + \dots + \beta_k x_k ^i)$$
 
 **The log link makes the tariff multiplicative.** Each coefficient becomes a **relativity**
 $e^{\beta_j}$, the factor by which a characteristic multiplies the frequency with respect to a
@@ -131,12 +131,7 @@ The loading assumes that large claims are proportional to the "normal" severity 
 **Cross-validation.** With about 21,000 noisy claims, one validation split is not enough to tell
 whether a flexible model helps. The notebook compares the mean, the GLM and a GBM with 5-fold
 cross-validation, measured by $D^2 = 1 - D_{\text{model}} / D_{\text{mean}}$, the share of the Gamma
-deviance of the mean that a model removes. The deviance $D$ can be expressed in terms of the log likelihood as
-
-$$ D = 2 \phi ( \max_{\mu} \ell(\mu) - \ell (\hat{\beta})),$$
-
-i.e. $2 \phi$ times the difference between the maximum possible value of $\ell$ (with $\mu_i = N_i$) and the value it attains 
-considering the maximum likelihood estimator of the coefficients $\hat{\beta}$. 
+deviance of the mean that a model removes.
 
 ## Pure premium, balance and how the models are compared
 
@@ -193,7 +188,7 @@ All on the test set, which the models never saw.
 | Poisson GLM | 0.4530 | 0.2984 | 0.9974 |
 | LightGBM | 0.4441 | 0.3341 | 0.9982 |
 
-**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.2%, of a small GBM 0.05%; on the test claims the GLM reaches -0.20%. 
+**Severity** (capped cost per claim): $D^2$ of the Gamma GLM in 5-fold cross-validation 0.2%, of a small GBM 0.05%. 
 
 **Pure premium** (cost per year):
 | model | Gini | balance |
@@ -207,7 +202,7 @@ All on the test set, which the models never saw.
 ### Do the models work?
 
 Not "which one is better", but whether they work at all: on the test set, cut into 10 groups of equal
-exposure from the lowest to the highest prediction (notebook §9).
+exposure from the lowest to the highest prediction (§9 in the notebook).
 
 | test set | riskiest 10% / safest 10% (observed) | largest error in a group | total predicted / observed |
 |---|-------------------------------------:|-------------------------:|---------------------------:|
@@ -217,8 +212,8 @@ exposure from the lowest to the highest prediction (notebook §9).
 | pure premium, GBM × GLM, cost below 50,000 per claim |                                 9.4× |                      36% |                      0.967 |
 
 The frequency models separate the risks and get their level right. The severity model barely moves
-away from the average cost per claim. Indeed very large claims are predictable by
-no model: they are covered on average by the loading, and they make one year's total cost uncertain.
+away from the average cost per claim and very large claims are not predictable by
+the model: they are covered on average by the loading, and they make one year's total cost uncertain.
 
 **Every premium over-predicts the test cost by 4%**, the flat one included. The test set has a smaller share of cost above the cap than the training set
 (about 18% against 24%). This is the large-claim loading meeting one year of heavy-tailed data, not a defect of the models. 
